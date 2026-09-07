@@ -1,0 +1,19 @@
+{
+  "name": "Rocq Platform",
+  "image": "ghcr.io/rocq-prover/rocq-platform_ide:2026.01",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rocq-prover.vsrocq"
+      ],
+      "settings": {
+        "vsrocq.path": "/home/rocq/.opam/4.14.2+flambda/bin/vsrocqtop"
+      }
+    }
+  },
+  "remoteUser": "rocq",
+  "updateRemoteUserUID": false,
+  "workspaceFolder": "/home/rocq/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/rocq/workspace,type=bind,consistency=cached",
+  "postCreateCommand": "rocq --version"
+}

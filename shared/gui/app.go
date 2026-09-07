@@ -12,6 +12,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/justme0606/rocq-platform-starter/shared/github"
 )
 
 const (
@@ -127,13 +129,18 @@ type AppConfig struct {
 
 // Run creates and runs the shared GUI application.
 func Run(cfg *AppConfig) {
-	a := app.New()
+	a := app.NewWithID("org.rocq-prover.platform-starter")
 	a.Settings().SetTheme(NewRocqTheme())
 
 	var iconRes fyne.Resource
 	if len(cfg.Icon) > 0 {
 		iconRes = fyne.NewStaticResource("rocq-icon.png", cfg.Icon)
 		a.SetIcon(iconRes)
+	}
+
+	// Restore saved GitHub token from preferences.
+	if saved := a.Preferences().String("github_token"); saved != "" {
+		github.SetToken(saved)
 	}
 
 	windowTitle := "Rocq Platform Starter"
@@ -143,6 +150,29 @@ func Run(cfg *AppConfig) {
 	w := a.NewWindow(windowTitle)
 	w.Resize(fyne.NewSize(windowWidth, windowHeight))
 	w.SetFixedSize(false)
+
+	// --- Settings button (GitHub token, dev only) ---
+	var settingsBtn *widget.Button
+	if cfg.Version == "" || cfg.Version == "dev" {
+		settingsBtn = widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+			entry := widget.NewPasswordEntry()
+			entry.SetPlaceHolder("ghp_...")
+			entry.SetText(a.Preferences().String("github_token"))
+
+			form := widget.NewFormItem("GitHub Token", entry)
+
+			dialog.ShowForm("Settings", "Save", "Cancel",
+				[]*widget.FormItem{form}, func(ok bool) {
+					if !ok {
+						return
+					}
+					t := strings.TrimSpace(entry.Text)
+					a.Preferences().SetString("github_token", t)
+					github.SetToken(t)
+				}, w)
+		})
+		settingsBtn.Importance = widget.LowImportance
+	}
 
 	// --- Header: icon + title + version info ---
 	var headerIcon *canvas.Image
@@ -165,8 +195,12 @@ func Run(cfg *AppConfig) {
 	titleBlock := container.NewVBox(titleRow)
 
 	var header *fyne.Container
-	if headerIcon != nil {
+	if headerIcon != nil && settingsBtn != nil {
+		header = container.NewHBox(headerIcon, container.NewCenter(titleBlock), layout.NewSpacer(), settingsBtn)
+	} else if headerIcon != nil {
 		header = container.NewHBox(headerIcon, container.NewCenter(titleBlock))
+	} else if settingsBtn != nil {
+		header = container.NewHBox(container.NewCenter(titleBlock), layout.NewSpacer(), settingsBtn)
 	} else {
 		header = container.NewHBox(container.NewCenter(titleBlock))
 	}

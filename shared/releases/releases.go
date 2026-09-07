@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/justme0606/rocq-platform-starter/shared/github"
 )
 
 const (
@@ -38,7 +40,7 @@ type GHReleaseDetail struct {
 // FetchReleases returns available release tags from GitHub, filtered to exclude
 // old "v" prefixed tags.
 func FetchReleases() ([]string, error) {
-	resp, err := http.Get(ReleasesURL + "?per_page=30")
+	resp, err := github.Get(ReleasesURL + "?per_page=30")
 	if err != nil {
 		return nil, fmt.Errorf("fetch releases: %w", err)
 	}
@@ -129,7 +131,7 @@ func FetchRocqVersion(tag string) (string, error) {
 
 // FetchReleaseDetail fetches the full release details for a given tag from GitHub.
 func FetchReleaseDetail(tag string) (*GHReleaseDetail, error) {
-	resp, err := http.Get(ReleaseURL + tag)
+	resp, err := github.Get(ReleaseURL + tag)
 	if err != nil {
 		return nil, err
 	}

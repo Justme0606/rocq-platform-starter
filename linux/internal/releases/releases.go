@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/justme0606/rocq-platform-starter/shared/github"
 	sharedreleases "github.com/justme0606/rocq-platform-starter/shared/releases"
 
 	"github.com/justme0606/rocq-platform-starter/linux/internal/manifest"
@@ -43,6 +44,7 @@ type packagePickInfo struct {
 var (
 	varRe = regexp.MustCompile(`^(\w+)=["']?([^"'\s]+)["']?`)
 	pinRe = regexp.MustCompile(`PIN\.([^."]+)\.([\w.~+-]+)`)
+	pkgRe = regexp.MustCompile(`(?:^|[\s"])([a-z][\w-]*)\.(v?\d[\w.~+-]*)`)
 )
 
 // parsePackagePick parses a package-pick shell script and extracts relevant info.
@@ -64,11 +66,15 @@ func parsePackagePick(content string) *packagePickInfo {
 			}
 		}
 
-		// Parse PIN references in PACKAGES lines
-		if strings.Contains(line, "PIN.") {
-			// Extract all PIN.name.version patterns from the line
-			if m := pinRe.FindStringSubmatch(line); m != nil {
+		// Parse package references in PACKAGES lines
+		if strings.Contains(line, "PACKAGES") {
+			for _, m := range pinRe.FindAllStringSubmatch(line, -1) {
 				info.pinnedPackages[m[1]] = m[2]
+			}
+			for _, m := range pkgRe.FindAllStringSubmatch(line, -1) {
+				if _, exists := info.pinnedPackages[m[1]]; !exists {
+					info.pinnedPackages[m[1]] = m[2]
+				}
 			}
 		}
 	}
@@ -87,7 +93,7 @@ func findPackagePickFile(tag string) (string, error) {
 	yearMonth := parts[0] + "." + parts[1]
 
 	// List package_picks directory
-	resp, err := http.Get(repoContentsURL)
+	resp, err := github.Get(repoContentsURL)
 	if err != nil {
 		return "", fmt.Errorf("list package_picks: %w", err)
 	}
@@ -121,7 +127,7 @@ func findPackagePickFile(tag string) (string, error) {
 // fetchPackagePick downloads and parses a package-pick file.
 func fetchPackagePick(filename string) (*packagePickInfo, error) {
 	url := rawContentURL + filename
-	resp, err := http.Get(url)
+	resp, err := github.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("fetch %s: %w", filename, err)
 	}

@@ -174,7 +174,7 @@ func Run(cfg *Config) (*Result, error) {
 	}
 
 	// Write VSCode settings with language server path from the switch
-	topPath := findLanguageServerTop(switchName, cfg.Manifest.RocqVersion)
+	topPath, _ := FindLanguageServerTop(switchName, cfg.Manifest.RocqVersion)
 	if topPath != "" {
 		settingsKey := "vsrocq.path"
 		if vscode.IsCoq(cfg.Manifest.RocqVersion) {
@@ -349,24 +349,4 @@ func installPackages(switchName string, packages []manifest.OpamPackage, logger 
 	}
 
 	return nil
-}
-
-// findLanguageServerTop locates the vsrocqtop or vscoqtop binary in the opam switch.
-func findLanguageServerTop(switchName, rocqVersion string) string {
-	out, err := exec.Command("opam", "var", "--switch="+switchName, "bin").Output()
-	if err != nil {
-		return ""
-	}
-	binDir := strings.TrimSpace(string(out))
-
-	binName := "vsrocqtop"
-	if vscode.IsCoq(rocqVersion) {
-		binName = "vscoqtop"
-	}
-
-	topPath := filepath.Join(binDir, binName)
-	if _, err := os.Stat(topPath); err == nil {
-		return topPath
-	}
-	return ""
 }

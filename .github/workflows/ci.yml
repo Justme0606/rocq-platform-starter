@@ -38,6 +38,24 @@ jobs:
           test -f templates/_RocqProject
           echo "All templates OK"
 
+      - name: Validate platform parity
+        run: |
+          echo "Checking that key files exist on all platforms..."
+          FAIL=0
+          for f in internal/installer/vsrocqtop.go internal/installer/installer.go internal/doctor/doctor.go internal/vscode/vscode.go; do
+            for p in linux macos windows; do
+              if [ ! -f "$p/$f" ]; then
+                echo "MISSING: $p/$f"
+                FAIL=1
+              fi
+            done
+          done
+          if [ "$FAIL" -eq 1 ]; then
+            echo "Platform parity check failed"
+            exit 1
+          fi
+          echo "Platform parity OK"
+
   # ──────────────────────────────────────────────
   # Shell installer (Linux headless)
   # ──────────────────────────────────────────────

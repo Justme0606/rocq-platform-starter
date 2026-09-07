@@ -139,11 +139,26 @@ jobs:
           test -f "$MOUNT_POINT/Rocq-Platform-Starter.app/Contents/MacOS/rocq-platform-starter"
           hdiutil detach "$MOUNT_POINT" || true
 
-      - name: Upload artifact
+      - name: Create signing tar.gz
+        working-directory: macos
+        run: |
+          SOFT_NAME="rocq-platform-starter-${{ inputs.tag }}-macos-arm64"
+          mkdir -p "$SOFT_NAME"
+          cp -R Rocq-Platform-Starter.app "$SOFT_NAME/"
+          tar -czf "${SOFT_NAME}.tar.gz" "$SOFT_NAME"
+          echo "Created: ${SOFT_NAME}.tar.gz ($(du -h "${SOFT_NAME}.tar.gz" | cut -f1))"
+
+      - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: rocq-platform-starter-macos
           path: macos/rocq-platform-starter.dmg
+
+      - name: Upload signing tar.gz artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rocq-platform-starter-macos-signing
+          path: macos/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz
 
   # ──────────────────────────────────────────────
   # Release
@@ -166,17 +181,20 @@ jobs:
       - name: Verify all artifacts
         run: |
           test -f artifacts/rocq-platform-starter-windows/rocq-platform-starter.exe
-          echo "Windows: $(stat -c%s artifacts/rocq-platform-starter-windows/rocq-platform-starter.exe) bytes"
+          echo "Windows:       $(stat -c%s artifacts/rocq-platform-starter-windows/rocq-platform-starter.exe) bytes"
           test -f artifacts/rocq-platform-starter-macos/rocq-platform-starter.dmg
-          echo "macOS:   $(stat -c%s artifacts/rocq-platform-starter-macos/rocq-platform-starter.dmg) bytes"
+          echo "macOS DMG:     $(stat -c%s artifacts/rocq-platform-starter-macos/rocq-platform-starter.dmg) bytes"
+          test -f artifacts/rocq-platform-starter-macos-signing/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz
+          echo "macOS tar.gz:  $(stat -c%s artifacts/rocq-platform-starter-macos-signing/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz) bytes"
           test -f artifacts/rocq-platform-starter-linux/rocq-platform-starter
-          echo "Linux:   $(stat -c%s artifacts/rocq-platform-starter-linux/rocq-platform-starter) bytes"
+          echo "Linux:         $(stat -c%s artifacts/rocq-platform-starter-linux/rocq-platform-starter) bytes"
 
       - name: Generate SHA256 checksums
         run: |
           cd artifacts
           sha256sum rocq-platform-starter-windows/rocq-platform-starter.exe \
                     rocq-platform-starter-macos/rocq-platform-starter.dmg \
+                    rocq-platform-starter-macos-signing/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz \
                     rocq-platform-starter-linux/rocq-platform-starter | tee SHA256SUMS.txt
 
       - name: Extract manifest info
@@ -203,6 +221,7 @@ jobs:
           # Checksums
           WIN_SHA=$(sha256sum artifacts/rocq-platform-starter-windows/rocq-platform-starter.exe | awk '{print $1}')
           MAC_SHA=$(sha256sum artifacts/rocq-platform-starter-macos/rocq-platform-starter.dmg | awk '{print $1}')
+          MAC_TGZ_SHA=$(sha256sum artifacts/rocq-platform-starter-macos-signing/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz | awk '{print $1}')
           LIN_SHA=$(sha256sum artifacts/rocq-platform-starter-linux/rocq-platform-starter | awk '{print $1}')
 
           cat > /tmp/release-body.md << 'ENDOFHEADER'
@@ -239,6 +258,7 @@ jobs:
           \`\`\`
           ${WIN_SHA}  rocq-platform-starter-windows-x86_64.exe
           ${MAC_SHA}  rocq-platform-starter-macos-arm64.dmg
+          ${MAC_TGZ_SHA}  rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz
           ${LIN_SHA}  rocq-platform-starter-linux-x86_64
           \`\`\`
           ENDOFBODY
@@ -260,5 +280,6 @@ jobs:
             --notes-file /tmp/release-body.md \
             artifacts/rocq-platform-starter-windows/rocq-platform-starter.exe#rocq-platform-starter-windows-x86_64.exe \
             artifacts/rocq-platform-starter-macos/rocq-platform-starter.dmg#rocq-platform-starter-macos-arm64.dmg \
+            "artifacts/rocq-platform-starter-macos-signing/rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz#rocq-platform-starter-${{ inputs.tag }}-macos-arm64.tar.gz" \
             artifacts/rocq-platform-starter-linux/rocq-platform-starter#rocq-platform-starter-linux-x86_64 \
             artifacts/SHA256SUMS.txt#SHA256SUMS.txt
